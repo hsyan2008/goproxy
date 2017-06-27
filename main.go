@@ -1,72 +1,59 @@
-//支持http和https
-//https://tools.ietf.org/html/draft-luotonen-web-proxy-tunneling-01
-
 package main
 
 import (
-	"bufio"
 	"io"
 	"net"
-	"net/http"
-	"strings"
+	"os"
+	"runtime"
+	"time"
 
+	"golang.org/x/crypto/ssh"
+
+	"github.com/BurntSushi/toml"
 	"github.com/hsyan2008/go-logger/logger"
 )
 
+var sshClient *ssh.Client
+var err error
+
 func main() {
-	lister, err := net.Listen("tcp", ":18888")
-	if err != nil {
-		logger.Warn("listen error:", err)
+	logger.SetLogGoID(true)
+
+	var config tomlConfig
+	if _, err = toml.DecodeFile("main.toml", &config); err != nil {
+		logger.Warn("load config error", err)
+		os.Exit(1)
 	}
 
-	for {
-		conn, err := lister.Accept()
+	logger.Info(config)
+
+	if config.Ssh.Enable && config.Ssh.Addr != "" {
+		logger.Info("start to connect ssh")
+		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.Auth)
 		if err != nil {
-			continue
+			logger.Warn("ssh connection fail:", err)
+			os.Exit(1)
+		} else {
+			logger.Info("ssh connection success")
 		}
-		go hand(conn)
+
+		go func() {
+			for sshClient != nil {
+				time.Sleep(config.Keep * time.Second)
+				logger.Info("keepalive")
+				if keepalive(sshClient) != nil {
+					os.Exit(2)
+				}
+			}
+		}()
 	}
-}
 
-func hand(conn net.Conn) {
+	go startSocket5(config.Socket5)
+	go startSocket5(config.Socket5Ssh)
+	go startHttp(config.Http)
+	go startHttp(config.HttpSsh)
 
-	r := bufio.NewReader(conn)
-
-	req, _ := http.ReadRequest(r)
-	logger.Warn(req.Host)
-
-	req.Header.Del("Proxy-Connection")
-	//否则远程连接不会关闭，导致Copy卡住
-	req.Header.Set("Connection", "close")
-
-	if req.Method == "CONNECT" {
-		con, err := net.Dial("tcp", req.Host)
-		if err != nil {
-			logger.Warn(err)
-			return
-		}
-
-		_, _ = io.WriteString(conn, "HTTP/1.0 200 Connection Established\r\n\r\n")
-
-		go copyNet(conn, con)
-		go copyNet(con, conn)
-	} else {
-		hosts := strings.Split(req.Host, ":")
-		if len(hosts) == 1 {
-			hosts = append(hosts, "80")
-		}
-		con, err := net.Dial("tcp", strings.Join(hosts, ":"))
-		if err != nil {
-			logger.Warn(err)
-			return
-		}
-		err = req.Write(con)
-		if err != nil {
-			logger.Warn(err)
-			return
-		}
-		go copyNet(conn, con)
-	}
+	runtime.Goexit()
 }
 
 func copyNet(des, src net.Conn) {
@@ -75,4 +62,41 @@ func copyNet(des, src net.Conn) {
 		_ = src.Close()
 	}()
 	_, _ = io.Copy(des, src)
+}
+
+var timeout time.Duration = 10
+
+func dial(addr string, overssh bool) (conn net.Conn, err error) {
+	if sshClient == nil || !overssh {
+		logger.Warn("不通过ssh连接", addr)
+		conn, err = net.DialTimeout("tcp", addr, timeout*time.Second)
+	} else {
+		logger.Debug("通过ssh连接", addr)
+		conn, err = sshClient.Dial("tcp", addr)
+	}
+
+	return conn, err
+}
+
+type tomlConfig struct {
+	Title      string `toml:"title"`
+	Keep       time.Duration
+	Timeout    time.Duration
+	Http       Config
+	HttpSsh    Config `toml:"http_ssh"`
+	Socket5    Config
+	Socket5Ssh Config `toml:"socket5_ssh"`
+	Ssh        Ssh
+}
+
+type Config struct {
+	Addr    string
+	Overssh bool
+}
+
+type Ssh struct {
+	Addr   string `toml:"addr"`
+	User   string `toml:"user"`
+	Auth   string `toml:"auth"`
+	Enable bool
 }
