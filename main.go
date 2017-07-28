@@ -29,7 +29,7 @@ func main() {
 
 	if config.Ssh.Enable && config.Ssh.Addr != "" {
 		logger.Info("start to connect ssh")
-		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.Auth)
+		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.Auth, config.Ssh.Timeout)
 		if err != nil {
 			logger.Warn("ssh connection fail:", err)
 			os.Exit(1)
@@ -95,8 +95,9 @@ type Config struct {
 }
 
 type Ssh struct {
-	Addr   string `toml:"addr"`
-	User   string `toml:"user"`
-	Auth   string `toml:"auth"`
-	Enable bool
+	Addr    string `toml:"addr"`
+	User    string `toml:"user"`
+	Auth    string `toml:"auth"`
+	Timeout time.Duration
+	Enable  bool
 }

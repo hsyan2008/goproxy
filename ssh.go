@@ -4,19 +4,21 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/hsyan2008/go-logger/logger"
 
 	"golang.org/x/crypto/ssh"
 )
 
-func connectSsh(addr, auth string) (*ssh.Client, error) {
+func connectSsh(addr, auth string, timeout time.Duration) (*ssh.Client, error) {
 	config := &ssh.ClientConfig{
 		User: "root",
 		Auth: []ssh.AuthMethod{
 			getAuth(auth),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         timeout * time.Second,
 	}
 
 	return ssh.Dial("tcp", addr, config)

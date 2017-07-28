@@ -36,6 +36,12 @@ func startSocket5(config Config) {
 }
 
 func handSocket5(con net.Conn, overssh bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(err)
+		}
+	}()
+
 	var buf []byte
 	var err error
 

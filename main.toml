@@ -18,4 +18,5 @@ overssh = true
 addr  = "ssh服务器的ip，如 192.168.1.53:22"
 user  = "跳板机的用户帐号"
 auth  = "认证信息，可以是密码、密钥文件、密钥文本"
+timeout = "单位秒"
 enable = true

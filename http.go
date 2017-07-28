@@ -35,6 +35,11 @@ func startHttp(config Config) {
 }
 
 func handHttp(conn net.Conn, overssh bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(err)
+		}
+	}()
 
 	r := bufio.NewReader(conn)
 
