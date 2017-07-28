@@ -68,11 +68,11 @@ func handHttp(conn net.Conn, overssh bool) {
 			hosts = append(hosts, "80")
 		}
 		con, err := dial(strings.Join(hosts, ":"), overssh)
-		logger.Info(req.Host, "连接建立成功")
 		if err != nil {
-			logger.Warn(err)
+			logger.Warn(req.Host, err)
 			return
 		}
+		logger.Info(req.Host, "连接建立成功")
 		err = req.Write(con)
 		if err != nil {
 			logger.Warn(err)
