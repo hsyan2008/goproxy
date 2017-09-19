@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net"
+	"runtime"
 	"strconv"
 
 	"github.com/hsyan2008/go-logger/logger"
@@ -39,6 +40,12 @@ func handSocket5(con net.Conn, overssh bool) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
+
+			buf := make([]byte, 1<<20)
+			num := runtime.Stack(buf, false)
+			logger.Warn(num, string(buf))
+
+			_ = con.Close()
 		}
 	}()
 

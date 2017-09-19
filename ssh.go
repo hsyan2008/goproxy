@@ -11,9 +11,9 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func connectSsh(addr, auth string, timeout time.Duration) (*ssh.Client, error) {
+func connectSsh(addr, user, auth string, timeout time.Duration) (*ssh.Client, error) {
 	config := &ssh.ClientConfig{
-		User: "root",
+		User: user,
 		Auth: []ssh.AuthMethod{
 			getAuth(auth),
 		},

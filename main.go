@@ -29,7 +29,7 @@ func main() {
 
 	if config.Ssh.Enable && config.Ssh.Addr != "" {
 		logger.Info("start to connect ssh")
-		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.Auth, config.Ssh.Timeout)
+		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.User, config.Ssh.Auth, config.Ssh.Timeout)
 		if err != nil {
 			logger.Warn("ssh connection fail:", err)
 			os.Exit(1)

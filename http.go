@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/hsyan2008/go-logger/logger"
@@ -38,12 +39,22 @@ func handHttp(conn net.Conn, overssh bool) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
+
+			buf := make([]byte, 1<<20)
+			num := runtime.Stack(buf, false)
+			logger.Warn(num, string(buf))
+
+			_ = conn.Close()
 		}
 	}()
 
 	r := bufio.NewReader(conn)
 
-	req, _ := http.ReadRequest(r)
+	req, err := http.ReadRequest(r)
+	if err != nil {
+		logger.Error("http ReadRequest error:", err)
+		return
+	}
 
 	req.Header.Del("Proxy-Connection")
 	//否则远程连接不会关闭，导致Copy卡住
