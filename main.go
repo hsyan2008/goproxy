@@ -15,11 +15,11 @@ import (
 
 var sshClient *ssh.Client
 var err error
+var config tomlConfig
 
 func main() {
 	logger.SetLogGoID(true)
 
-	var config tomlConfig
 	if _, err = toml.DecodeFile("main.toml", &config); err != nil {
 		logger.Warn("load config error", err)
 		os.Exit(1)
@@ -28,22 +28,10 @@ func main() {
 	logger.Info(config)
 
 	if config.Ssh.Enable && config.Ssh.Addr != "" {
-		logger.Info("start to connect ssh")
-		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.User, config.Ssh.Auth, config.Ssh.Timeout)
-		if err != nil {
-			logger.Warn("ssh connection fail:", err)
-			os.Exit(1)
-		} else {
-			logger.Info("ssh connection success")
-		}
-
 		go func() {
-			for sshClient != nil {
+			for {
+				checkSsh()
 				time.Sleep(config.Keep * time.Second)
-				logger.Info("keepalive")
-				if keepalive(sshClient) != nil {
-					os.Exit(2)
-				}
 			}
 		}()
 	}
@@ -73,9 +61,27 @@ func dial(addr string, overssh bool) (conn net.Conn, err error) {
 	} else {
 		logger.Debug("通过ssh连接", addr)
 		conn, err = sshClient.Dial("tcp", addr)
+		if err != nil {
+			checkSsh()
+			conn, err = sshClient.Dial("tcp", addr)
+		}
 	}
 
 	return conn, err
+}
+
+func checkSsh() {
+	logger.Info("keepalive")
+	if keepalive(sshClient) != nil {
+		logger.Info("start to connect ssh")
+		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.User, config.Ssh.Auth, config.Ssh.Timeout)
+		if err != nil {
+			logger.Warn("ssh connection fail:", err)
+			os.Exit(1)
+		} else {
+			logger.Info("ssh connection success")
+		}
+	}
 }
 
 type tomlConfig struct {

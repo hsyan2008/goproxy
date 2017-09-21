@@ -52,6 +52,10 @@ func keepalive(s *ssh.Client) (err error) {
 			err = errors.New("keepalive error")
 		}
 	}()
+	if s == nil {
+		return errors.New("ssh Client is nil")
+	}
+
 	sess, err := s.NewSession()
 	if err != nil {
 		logger.Warn("keepalive NewSession error")
