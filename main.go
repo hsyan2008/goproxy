@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -70,9 +71,16 @@ func dial(addr string, overssh bool) (conn net.Conn, err error) {
 	return conn, err
 }
 
+var mut = new(sync.Mutex)
+
 func checkSsh() {
+	mut.Lock()
+	defer mut.Unlock()
 	logger.Info("keepalive")
 	if keepalive(sshClient) != nil {
+		if sshClient != nil {
+			_ = sshClient.Close()
+		}
 		logger.Info("start to connect ssh")
 		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.User, config.Ssh.Auth, config.Ssh.Timeout)
 		if err != nil {
