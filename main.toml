@@ -5,15 +5,27 @@ timeout = 10
 [http]
 addr  = "绑定到本地机器的端口，如 :60053"
 overssh = false
+overpac = false
 [http_ssh]
 addr  = "绑定到本地机器的端口，如 :60053"
 overssh = true
+overpac = false
+[http_pac]
+addr  = "绑定到本地机器的端口，如 :60053"
+overssh = true
+overpac = true
 [socket5]
 addr  = "绑定到本地机器的端口，如 :60053"
 overssh = false
+overpac = false
 [socket5_ssh]
 addr  = "绑定到本地机器的端口，如 :60053"
 overssh = true
+overpac = false
+[socket5_pac]
+addr  = "绑定到本地机器的端口，如 :60053"
+overssh = true
+overpac = true
 [ssh]
 addr  = "ssh服务器的ip，如 192.168.1.53:22"
 user  = "跳板机的用户帐号"

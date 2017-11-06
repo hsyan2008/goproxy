@@ -8,6 +8,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"net"
 	"runtime"
 	"strconv"
@@ -24,19 +25,18 @@ func startSocket5(config Config) {
 	if err != nil {
 		logger.Warn("socket5 listen error:", err)
 	}
-	logger.Info("start socket5 listen ", config.Addr, "overssh", config.Overssh)
+	logger.Info("start socket5 listen ", config.Addr, "overssh", config.Overssh, "overpac", config.Overpac)
 
 	for {
 		con, err := ln.Accept()
 		if err != nil {
 			continue
 		}
-		logger.Debug("accept connect")
-		go handSocket5(con, config.Overssh)
+		go handSocket5(con, config)
 	}
 }
 
-func handSocket5(con net.Conn, overssh bool) {
+func handSocket5(con net.Conn, config Config) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
@@ -97,14 +97,30 @@ func handSocket5(con net.Conn, overssh bool) {
 	}
 	_ = binary.Read(bytes.NewReader(buf[len(buf)-2:]), binary.BigEndian, &port)
 
-	conn, err := dial(host+":"+strconv.Itoa(int(port)), overssh)
+	var logpre string
+
+	if config.Overpac {
+		if checkPac(host) {
+			config.Overssh = true
+		} else {
+			config.Overssh = false
+		}
+	}
+
+	if config.Overssh {
+		logpre = fmt.Sprintf("%s %s 通过ssh %s:%d", con.RemoteAddr().Network(), con.RemoteAddr().String(), host, port)
+	} else {
+		logpre = fmt.Sprintf("%s %s 不通过ssh %s:%d", con.RemoteAddr().Network(), con.RemoteAddr().String(), host, port)
+	}
+	logger.Info(logpre, "正在建立连接...")
+	conn, err := dial(host+":"+strconv.Itoa(int(port)), config.Overssh)
 	if err != nil {
 		logger.Warn(host, err)
 		// _, _ = con.Write([]byte{0x05, 0x06, 0x00, atyp})
 		_ = con.Close()
 		return
 	}
-	logger.Info(host, port, "连接建立成功")
+	logger.Info(logpre, "连接建立成功")
 
 	_, _ = con.Write([]byte{0x05, 0x00, 0x00, atyp})
 	//把地址写回去

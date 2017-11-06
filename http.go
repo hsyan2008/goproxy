@@ -5,6 +5,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -23,19 +24,18 @@ func startHttp(config Config) {
 	if err != nil {
 		logger.Warn("http/https listen error:", err)
 	}
-	logger.Info("start http/https listen ", config.Addr, "overssh", config.Overssh)
+	logger.Info("start http/https listen ", config.Addr, "overssh", config.Overssh, "overpac", config.Overpac)
 
 	for {
 		conn, err := lister.Accept()
 		if err != nil {
 			continue
 		}
-		logger.Debug("accept connect")
-		go handHttp(conn, config.Overssh)
+		go handHttp(conn, config)
 	}
 }
 
-func handHttp(conn net.Conn, overssh bool) {
+func handHttp(conn net.Conn, config Config) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
@@ -60,30 +60,47 @@ func handHttp(conn net.Conn, overssh bool) {
 	//否则远程连接不会关闭，导致Copy卡住
 	req.Header.Set("Connection", "close")
 
+	var logpre string
+
+	if config.Overpac {
+		if checkPac(req.Host) {
+			config.Overssh = true
+		} else {
+			config.Overssh = false
+		}
+	}
+
+	if config.Overssh {
+		logpre = fmt.Sprintf("%s %s 通过ssh %s", conn.RemoteAddr().Network(), conn.RemoteAddr().String(), req.Host)
+	} else {
+		logpre = fmt.Sprintf("%s %s 不通过ssh %s", conn.RemoteAddr().Network(), conn.RemoteAddr().String(), req.Host)
+	}
+
 	if req.Method == "CONNECT" {
-		con, err := dial(req.Host, overssh)
+		logger.Info(logpre, "正在建立连接...")
+		con, err := dial(req.Host, config.Overssh)
 		if err != nil {
 			logger.Warn(err)
 			return
 		}
-		logger.Info(req.Host, "连接建立成功")
+		logger.Info(logpre, "连接建立成功")
 
 		_, _ = io.WriteString(conn, "HTTP/1.0 200 Connection Established\r\n\r\n")
 
 		go copyNet(conn, con)
 		go copyNet(con, conn)
 	} else {
-		logger.Info("no connect")
 		hosts := strings.Split(req.Host, ":")
 		if len(hosts) == 1 {
 			hosts = append(hosts, "80")
 		}
-		con, err := dial(strings.Join(hosts, ":"), overssh)
+		logger.Info(logpre, "正在建立连接...")
+		con, err := dial(strings.Join(hosts, ":"), config.Overssh)
 		if err != nil {
 			logger.Warn(req.Host, err)
 			return
 		}
-		logger.Info(req.Host, "连接建立成功")
+		logger.Info(logpre, "连接建立成功")
 		err = req.Write(con)
 		if err != nil {
 			logger.Warn(err)

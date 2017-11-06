@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +18,10 @@ import (
 var sshClient *ssh.Client
 var err error
 var config tomlConfig
+var pac struct {
+	Prehosts []string
+	Hosts    map[string]int
+}
 
 func main() {
 	logger.SetLogGoID(true)
@@ -26,21 +31,40 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger.Info(config)
+	// logger.Info(config)
+
+	if _, err = toml.DecodeFile("pac.toml", &pac); err != nil {
+		logger.Warn("load pac config error", err)
+		os.Exit(1)
+	}
+
+	pac.Hosts = make(map[string]int)
+	for _, v := range pac.Prehosts {
+		pac.Hosts[v] = 1
+	}
+
+	// logger.Info(pac)
 
 	if config.Ssh.Enable && config.Ssh.Addr != "" {
+		checkSsh()
+		if sshClient == nil {
+			logger.Warn("init ssh connection fail")
+			os.Exit(1)
+		}
 		go func() {
 			for {
-				checkSsh()
 				time.Sleep(config.Keep * time.Second)
+				checkSsh()
 			}
 		}()
 	}
 
 	go startSocket5(config.Socket5)
 	go startSocket5(config.Socket5Ssh)
+	go startSocket5(config.Socket5Pac)
 	go startHttp(config.Http)
 	go startHttp(config.HttpSsh)
+	go startHttp(config.HttpPac)
 
 	runtime.Goexit()
 }
@@ -56,19 +80,36 @@ func copyNet(des, src net.Conn) {
 var timeout time.Duration = 10
 
 func dial(addr string, overssh bool) (conn net.Conn, err error) {
-	if sshClient == nil || !overssh {
-		logger.Warn("不通过ssh连接", addr)
-		conn, err = net.DialTimeout("tcp", addr, timeout*time.Second)
-	} else {
-		logger.Debug("通过ssh连接", addr)
+	if overssh {
 		conn, err = sshClient.Dial("tcp", addr)
 		if err != nil {
 			checkSsh()
 			conn, err = sshClient.Dial("tcp", addr)
 		}
+	} else {
+		conn, err = net.DialTimeout("tcp", addr, timeout*time.Second)
 	}
 
 	return conn, err
+}
+
+//检查是否在pac列表里
+func checkPac(addr string) bool {
+	host := strings.Split(addr, ":")[0]
+	hosts := strings.Split(host, ".")
+	pos := 1
+	for pos <= len(hosts) {
+		tmp := hosts[len(hosts)-pos:]
+		tmp1 := strings.Join(tmp, ".")
+		if _, ok := pac.Hosts[tmp1]; ok {
+			logger.Info(host, "in pac list")
+			return true
+		} else {
+			pos++
+		}
+	}
+
+	return false
 }
 
 var mut = new(sync.Mutex)
@@ -85,7 +126,7 @@ func checkSsh() {
 		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.User, config.Ssh.Auth, config.Ssh.Timeout)
 		if err != nil {
 			logger.Warn("ssh connection fail:", err)
-			os.Exit(1)
+			// os.Exit(1)
 		} else {
 			logger.Info("ssh connection success")
 		}
@@ -98,14 +139,17 @@ type tomlConfig struct {
 	Timeout    time.Duration
 	Http       Config
 	HttpSsh    Config `toml:"http_ssh"`
+	HttpPac    Config `toml:"http_pac"`
 	Socket5    Config
 	Socket5Ssh Config `toml:"socket5_ssh"`
+	Socket5Pac Config `toml:"socket5_pac"`
 	Ssh        Ssh
 }
 
 type Config struct {
 	Addr    string
 	Overssh bool
+	Overpac bool
 }
 
 type Ssh struct {
