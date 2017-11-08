@@ -100,6 +100,11 @@ func handSocket5(con net.Conn, config Config) {
 	var logpre string
 
 	if config.Overpac {
+		if checkBlock(host) {
+			logger.Warnf("%s %s in block list", con.RemoteAddr().String(), host)
+			_ = con.Close()
+			return
+		}
 		if checkPac(host) {
 			config.Overssh = true
 		} else {

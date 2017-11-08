@@ -52,7 +52,7 @@ func handHttp(conn net.Conn, config Config) {
 
 	req, err := http.ReadRequest(r)
 	if err != nil {
-		logger.Error("http ReadRequest error:", err)
+		logger.Error(conn.RemoteAddr().String(), "http ReadRequest error:", err)
 		return
 	}
 
@@ -63,6 +63,11 @@ func handHttp(conn net.Conn, config Config) {
 	var logpre string
 
 	if config.Overpac {
+		if checkBlock(req.Host) {
+			logger.Warnf("%s %s in block list", conn.RemoteAddr().String(), req.Host)
+			_ = conn.Close()
+			return
+		}
 		if checkPac(req.Host) {
 			config.Overssh = true
 		} else {

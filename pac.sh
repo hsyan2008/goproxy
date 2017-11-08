@@ -8,3 +8,12 @@ grep '": 1' abc.pac  | awk -F\" '{print " \""$2"\","}' >> pac.toml
 echo " \"google.com\"," >> pac.toml
 
 echo "]" >> pac.toml
+
+
+#黑名单
+echo "preblockhosts = [" >> pac.toml
+
+echo " \"googlevideo.com\"," >> pac.toml
+echo " \"youtube.com\"," >> pac.toml
+
+echo "]" >> pac.toml

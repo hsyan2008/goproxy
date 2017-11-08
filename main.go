@@ -19,8 +19,10 @@ var sshClient *ssh.Client
 var err error
 var config tomlConfig
 var pac struct {
-	Prehosts []string
-	Hosts    map[string]int
+	Prehosts      []string
+	Hosts         map[string]int
+	Preblockhosts []string
+	Blockhosts    map[string]int
 }
 
 func main() {
@@ -39,8 +41,12 @@ func main() {
 	}
 
 	pac.Hosts = make(map[string]int)
+	pac.Blockhosts = make(map[string]int)
 	for _, v := range pac.Prehosts {
 		pac.Hosts[v] = 1
+	}
+	for _, v := range pac.Preblockhosts {
+		pac.Blockhosts[v] = 1
 	}
 
 	// logger.Info(pac)
@@ -95,6 +101,9 @@ func dial(addr string, overssh bool) (conn net.Conn, err error) {
 
 //检查是否在pac列表里
 func checkPac(addr string) bool {
+	if len(pac.Hosts) == 0 {
+		return false
+	}
 	host := strings.Split(addr, ":")[0]
 	hosts := strings.Split(host, ".")
 	pos := 1
@@ -102,7 +111,27 @@ func checkPac(addr string) bool {
 		tmp := hosts[len(hosts)-pos:]
 		tmp1 := strings.Join(tmp, ".")
 		if _, ok := pac.Hosts[tmp1]; ok {
-			logger.Info(host, "in pac list")
+			return true
+		} else {
+			pos++
+		}
+	}
+
+	return false
+}
+
+//检查是否在黑名单
+func checkBlock(addr string) bool {
+	if len(pac.Blockhosts) == 0 {
+		return false
+	}
+	host := strings.Split(addr, ":")[0]
+	hosts := strings.Split(host, ".")
+	pos := 1
+	for pos <= len(hosts) {
+		tmp := hosts[len(hosts)-pos:]
+		tmp1 := strings.Join(tmp, ".")
+		if _, ok := pac.Blockhosts[tmp1]; ok {
 			return true
 		} else {
 			pos++
