@@ -2,33 +2,23 @@ title   = "Proxy"
 keep    = 60
 timeout = 10
 
-[http]
+[service.http]
+addr  = "绑定到本地机器的端口，如 :60053"
+# 是否通过ssh连接
+overssh = false
+# 是否根据pac来自动判断是否通过ssh连接
+overpac = false
+# 是否http代理，false表示用socket5
+ishttp = true
+[service.socket5]
 addr  = "绑定到本地机器的端口，如 :60053"
 overssh = false
 overpac = false
-[http_ssh]
-addr  = "绑定到本地机器的端口，如 :60053"
-overssh = true
-overpac = false
-[http_pac]
-addr  = "绑定到本地机器的端口，如 :60053"
-overssh = true
-overpac = true
-[socket5]
-addr  = "绑定到本地机器的端口，如 :60053"
-overssh = false
-overpac = false
-[socket5_ssh]
-addr  = "绑定到本地机器的端口，如 :60053"
-overssh = true
-overpac = false
-[socket5_pac]
-addr  = "绑定到本地机器的端口，如 :60053"
-overssh = true
-overpac = true
+ishttp = false
 [ssh]
 addr  = "ssh服务器的ip，如 192.168.1.53:22"
 user  = "跳板机的用户帐号"
 auth  = "认证信息，可以是密码、密钥文件、密钥文本"
-timeout = "单位秒"
+#超时时间，单位秒
+timeout = 10
 enable = true

@@ -65,12 +65,15 @@ func main() {
 		}()
 	}
 
-	go startSocket5(config.Socket5)
-	go startSocket5(config.Socket5Ssh)
-	go startSocket5(config.Socket5Pac)
-	go startHttp(config.Http)
-	go startHttp(config.HttpSsh)
-	go startHttp(config.HttpPac)
+	logger.Warnf("%#v", config)
+
+	for _, v := range config.Service {
+		if v.IsHttp {
+			go startHttp(v)
+		} else {
+			go startSocket5(v)
+		}
+	}
 
 	runtime.Goexit()
 }
@@ -163,22 +166,18 @@ func checkSsh() {
 }
 
 type tomlConfig struct {
-	Title      string `toml:"title"`
-	Keep       time.Duration
-	Timeout    time.Duration
-	Http       Config
-	HttpSsh    Config `toml:"http_ssh"`
-	HttpPac    Config `toml:"http_pac"`
-	Socket5    Config
-	Socket5Ssh Config `toml:"socket5_ssh"`
-	Socket5Pac Config `toml:"socket5_pac"`
-	Ssh        Ssh
+	Title   string `toml:"title"`
+	Keep    time.Duration
+	Timeout time.Duration
+	Service map[string]Config
+	Ssh     Ssh
 }
 
 type Config struct {
-	Addr    string
-	Overssh bool
-	Overpac bool
+	Addr    string `toml:"addr"`
+	Overssh bool   `toml:"overssh"`
+	Overpac bool   `toml:"overpac"`
+	IsHttp  bool   `toml:"ishttp"`
 }
 
 type Ssh struct {
