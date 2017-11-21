@@ -2,6 +2,10 @@ title   = "Proxy"
 keep    = 60
 timeout = 10
 
+
+#以下两个实例分别表示http和socket5
+#service后面的http和socket5可以随意修改，只要不重复
+
 [service.http]
 addr  = "绑定到本地机器的端口，如 :60053"
 # 是否通过ssh连接
@@ -10,6 +14,7 @@ overssh = false
 overpac = false
 # 是否http代理，false表示用socket5
 ishttp = true
+
 [service.socket5]
 addr  = "绑定到本地机器的端口，如 :60053"
 overssh = false
