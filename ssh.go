@@ -11,37 +11,55 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func connectSsh(addr, user, auth string, timeout time.Duration) (*ssh.Client, error) {
-	config := &ssh.ClientConfig{
-		User: user,
-		Auth: []ssh.AuthMethod{
-			getAuth(auth),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         timeout * time.Second,
-	}
-
-	return ssh.Dial("tcp", addr, config)
+type Ssh struct {
+	Addr    string `toml:"addr"`
+	User    string `toml:"user"`
+	Auth    string `toml:"auth"`
+	Phrase  string `toml:"phrase"`
+	Timeout time.Duration
+	Enable  bool
 }
 
-func getAuth(auth string) ssh.AuthMethod {
+func connectSsh(sshConfig Ssh) (*ssh.Client, error) {
+	config := &ssh.ClientConfig{
+		User: sshConfig.User,
+		Auth: []ssh.AuthMethod{
+			getAuth(sshConfig),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         sshConfig.Timeout * time.Second,
+	}
+
+	return ssh.Dial("tcp", sshConfig.Addr, config)
+}
+
+func getAuth(sshConfig Ssh) ssh.AuthMethod {
 	//是文件
 	var key []byte
+	var err error
 
-	if _, err := os.Stat(auth); err == nil {
-		key, _ = ioutil.ReadFile(auth)
+	if _, err = os.Stat(sshConfig.Auth); err == nil {
+		key, _ = ioutil.ReadFile(sshConfig.Auth)
 	}
 
 	//密码
 	if len(key) == 0 {
-		if len(auth) < 50 {
-			return ssh.Password(auth)
+		if len(sshConfig.Auth) < 50 {
+			return ssh.Password(sshConfig.Auth)
 		} else {
-			key = []byte(auth)
+			key = []byte(sshConfig.Auth)
 		}
 	}
 
-	signer, _ := ssh.ParsePrivateKey(key)
+	var signer ssh.Signer
+	if sshConfig.Phrase != "" {
+		signer, err = ssh.ParsePrivateKeyWithPassphrase(key, []byte(sshConfig.Phrase))
+	} else {
+		signer, err = ssh.ParsePrivateKey(key)
+	}
+	if err != nil {
+		panic("err private key:" + err.Error())
+	}
 	return ssh.PublicKeys(signer)
 }
 

@@ -24,6 +24,7 @@ ishttp = false
 addr  = "ssh服务器的ip，如 192.168.1.53:22"
 user  = "跳板机的用户帐号"
 auth  = "认证信息，可以是密码、密钥文件、密钥文本"
+phrase= "生成ssh密钥时输入的passphrase，如果没有请留空"
 #超时时间，单位秒
 timeout = 10
 enable = true

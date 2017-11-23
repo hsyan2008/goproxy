@@ -155,7 +155,7 @@ func checkSsh() {
 			_ = sshClient.Close()
 		}
 		logger.Info("start to connect ssh")
-		sshClient, err = connectSsh(config.Ssh.Addr, config.Ssh.User, config.Ssh.Auth, config.Ssh.Timeout)
+		sshClient, err = connectSsh(config.Ssh)
 		if err != nil {
 			logger.Warn("ssh connection fail:", err)
 			// os.Exit(1)
@@ -178,12 +178,4 @@ type Config struct {
 	Overssh bool   `toml:"overssh"`
 	Overpac bool   `toml:"overpac"`
 	IsHttp  bool   `toml:"ishttp"`
-}
-
-type Ssh struct {
-	Addr    string `toml:"addr"`
-	User    string `toml:"user"`
-	Auth    string `toml:"auth"`
-	Timeout time.Duration
-	Enable  bool
 }
