@@ -6,16 +6,13 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
-
-	"golang.org/x/crypto/ssh"
 
 	"github.com/BurntSushi/toml"
 	"github.com/hsyan2008/go-logger/logger"
+	"github.com/hsyan2008/hfw2/ssh"
 )
 
-var sshClient *ssh.Client
 var err error
 var config tomlConfig
 var pac struct {
@@ -24,6 +21,8 @@ var pac struct {
 	Preblockhosts []string
 	Blockhosts    map[string]int
 }
+
+var sshIns *ssh.SSH
 
 func main() {
 	logger.SetLogGoID(true)
@@ -52,17 +51,19 @@ func main() {
 	// logger.Info(pac)
 
 	if config.Ssh.Enable && config.Ssh.Addr != "" {
-		checkSsh()
-		if sshClient == nil {
+		sshConfig := ssh.SSHConfig{
+			Addr:    config.Ssh.Addr,
+			User:    config.Ssh.User,
+			Auth:    config.Ssh.Auth,
+			Phrase:  config.Ssh.Phrase,
+			Timeout: config.Ssh.Timeout,
+		}
+		sshIns, err = ssh.NewSSH(sshConfig)
+		// checkSsh()
+		if err != nil {
 			logger.Warn("init ssh connection fail")
 			os.Exit(1)
 		}
-		go func() {
-			for {
-				time.Sleep(config.Keep * time.Second)
-				checkSsh()
-			}
-		}()
 	}
 
 	logger.Warnf("%#v", config)
@@ -90,11 +91,7 @@ var timeout time.Duration = 10
 
 func dial(addr string, overssh bool) (conn net.Conn, err error) {
 	if overssh {
-		conn, err = sshClient.Dial("tcp", addr)
-		if err != nil {
-			checkSsh()
-			conn, err = sshClient.Dial("tcp", addr)
-		}
+		conn, err = sshIns.Connect(addr)
 	} else {
 		conn, err = net.DialTimeout("tcp", addr, timeout*time.Second)
 	}
@@ -144,27 +141,6 @@ func checkBlock(addr string) bool {
 	return false
 }
 
-var mut = new(sync.Mutex)
-
-func checkSsh() {
-	mut.Lock()
-	defer mut.Unlock()
-	logger.Info("keepalive")
-	if keepalive(sshClient) != nil {
-		if sshClient != nil {
-			_ = sshClient.Close()
-		}
-		logger.Info("start to connect ssh")
-		sshClient, err = connectSsh(config.Ssh)
-		if err != nil {
-			logger.Warn("ssh connection fail:", err)
-			// os.Exit(1)
-		} else {
-			logger.Info("ssh connection success")
-		}
-	}
-}
-
 type tomlConfig struct {
 	Title   string `toml:"title"`
 	Keep    time.Duration
@@ -178,4 +154,12 @@ type Config struct {
 	Overssh bool   `toml:"overssh"`
 	Overpac bool   `toml:"overpac"`
 	IsHttp  bool   `toml:"ishttp"`
+}
+type Ssh struct {
+	Addr    string `toml:"addr"`
+	User    string `toml:"user"`
+	Auth    string `toml:"auth"`
+	Phrase  string `toml:"phrase"`
+	Timeout time.Duration
+	Enable  bool
 }
