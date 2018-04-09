@@ -14,6 +14,6 @@ echo "]" >> pac.toml
 echo "preblockhosts = [" >> pac.toml
 
 echo " \"googlevideo.com\"," >> pac.toml
-echo " \"youtube.com\"," >> pac.toml
+# echo " \"youtube.com\"," >> pac.toml
 
 echo "]" >> pac.toml

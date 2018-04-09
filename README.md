@@ -1,4 +1,5 @@
 # goproxy
+已废弃，请访问[gossh](https://github.com/hsyan2008/gossh)  
 http/https/socket5 proxy over ssh by golang
 
 * 支持http
